@@ -1,11 +1,18 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
-class Hotel(BaseModel):
+class HotelAdd(BaseModel):
     title: str
-    name: str
+    location: str
+
+class Hotel(HotelAdd):
+    id: int
+
+
 
 
 class HotelPATCH(BaseModel):
-    title: str | None = Field(None)
-    name: str | None = Field(None)
+    title: Optional[str] = None
+    location: Optional[str] = None
