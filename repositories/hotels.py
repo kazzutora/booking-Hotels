@@ -30,7 +30,8 @@ class HotelsRepository(BaseRepository):
             )
         print(query.compile(compile_kwargs={"literal_binds": True}))
         result = await self.session.execute(query)
-        return result.scalars().all()
+
+        return [Hotel.model_validate(hotel, from_attributes=True) for hotel in result.scalars().all()]
 
 
     async def get_one(self, **filter_by):
@@ -45,7 +46,8 @@ class HotelsRepository(BaseRepository):
     async def add(self, data: BaseModel):  # убрал Body
         add_data_stmt = insert(self.model).values(**data.model_dump()).returning(self.model)
         result  = await self.session.execute(add_data_stmt)
-        return result.scalars().one()
+        model = result.scalar()
+        return self.schema.model_validate(model, from_attributes=True)
 
     async def edit(self , data: BaseModel ,**filter_by) -> None:
         # 1. Находим запись по фильтрам
