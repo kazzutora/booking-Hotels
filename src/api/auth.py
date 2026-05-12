@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status , Response , Request
 from passlib.context import CryptContext
 import jwt
 from repositories.users import UserRepository
+from src.api.dependencies import UserIdDep
 from src.config import settings
 from src.database import async_session_maker
 from src.schemas.users import UserRequestAdd
@@ -23,6 +24,12 @@ async def login_user(data: UserRequestAdd ,
         access_token = AuthService().create_access_token({'user_id': user.id})
         response.set_cookie("access_token", access_token)
         return {"access_token": access_token}
+@router.patch('/logout', status_code=status.HTTP_200_OK)
+async def logout_user(response: Response , user: UserIdDep):
+    if not user:
+        raise HTTPException(status_code=401, detail="Вы не авторизированые")
+    response.delete_cookie("access_token")
+    return {'status': 'Вы выйшли из системы'}
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(data: UserRequestAdd):
@@ -40,9 +47,7 @@ async def register_user(data: UserRequestAdd):
     return {"status": "OK"}
 
 @router.get('/only_auth')
-async def only_auth(request: Request ):
+async def only_auth(user_id: UserIdDep):
     async with async_session_maker() as session:
-        # access_token = request.cookies.get(**request.cookies)
-        access_token = request.cookies.get("access_token") or None
-        data = AuthService().decode_token(access_token)
-    return data
+        user = await UserRepository(session).get_one_or_none(id=user_id)
+    return user
