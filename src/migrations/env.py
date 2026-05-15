@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.config import settings
 from src.database import Base
 from src.models.hotels import HotelsOrm
-from src.models.hotels import RoomOrm#
+from src.models.rooms import RoomsOrm
 from src.models.users import UsersOrm# Імпортуємо моделі
 
 # Конфігурація Alembic
