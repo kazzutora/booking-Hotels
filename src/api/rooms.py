@@ -8,49 +8,64 @@ from repositories.users import UserRepository
 from src.api.dependencies import UserIdDep, PaginationDep
 from src.config import settings
 from src.database import async_session_maker
-from src.schemas.rooms import RoomAdd, Room
+from src.schemas.rooms import RoomAdd, Room, RoomPATCH, RoomAddRequest, RoomPatchRequest
 from src.schemas.users import UserRequestAdd
 from src.services.auth import AuthService
 
-router = APIRouter(prefix="/rooms", tags=["Комнаты отелей"])
 
-@router.get('')
-async def get_rooms(pagination: PaginationDep,
-            title: str | None = Query(None, description="Название отеля"),
-            id: int | None = Query(None, description="ID:" ) ,
-            description: str | None = Query(None , description="Описание"  ),
-            price: int | None = Query(None, description="Цена :"  ),
-            quantity: int | None = Query(None, description="Количество:",),
-            hotel_id: int | None = Query(None, description="Отель:")
-              ):
-    per_page = pagination.per_page or 5
+router = APIRouter(prefix="/hotels", tags=["Номера"])
 
+
+@router.get("/{hotel_id}/rooms")
+async def get_rooms(hotel_id: int):
     async with async_session_maker() as session:
-        return await RoomsRepository(session).get_all(
-            title=title,
-            id=id,
-            description=description,
-            price=price,
-            quantity=quantity,
-            hotel_id=hotel_id,
-            limit=per_page,
-            offset=per_page * (pagination.page - 1))
+        # Используем get_all вместо get_one
+        rooms = await RoomsRepository(session).get_all(
+            title=None,
+            id=None,
+            description=None,
+            price=None,
+            quantity=None,
+            limit=100,  # задайте значения по умолчанию
+            offset=0,
+            hotel_id=hotel_id  # передаем hotel_id для фильтрации
+        )
+        return rooms
 
 
-@router.post('', response_model=Room, status_code=status.HTTP_201_CREATED)
-async def create_room(room_data: RoomAdd):
-    """Создание новой комнаты"""
+@router.get("/{hotel_id}/rooms/{room_id}")
+async def get_room(hotel_id: int, room_id: int):
     async with async_session_maker() as session:
-        # Проверяем, существует ли отель
-        from repositories.hotels import HotelsRepository
+        return await RoomsRepository(session).get_one_or_none(id=room_id, hotel_id=hotel_id)
 
-        hotel = await HotelsRepository(session).get_one(id=room_data.hotel_id)
-        if not hotel:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Отель с ID {room_data.hotel_id} не найден"
-            )
 
-        # Создаем комнату
-        room = await RoomsRepository(session).add(room_data)
-        return room
+@router.post("/{hotel_id}/rooms")
+async def create_room(hotel_id: int, room_data: RoomAddRequest = Body()):
+    _room_data = RoomAdd(hotel_id=hotel_id, **room_data.model_dump())
+    async with async_session_maker() as session:
+        room = await RoomsRepository(session).add(_room_data)
+        await session.commit()
+
+    return {"status": "OK", "data": room}
+
+
+@router.put("/{hotel_id}/rooms/{room_id}")
+async def edit_room(hotel_id: int, room_id: int, room_data: RoomAddRequest):
+    _room_data = RoomAdd(hotel_id=hotel_id, **room_data.model_dump())
+    async with async_session_maker() as session:
+        await RoomsRepository(session).edit(_room_data, id=room_id)
+        await session.commit()
+    return {"status": "OK"}
+
+
+@router.patch("/{hotel_id}/rooms/{room_id}")
+async def partially_edit_room(
+        hotel_id: int,
+        room_id: int,
+        room_data: RoomPatchRequest,
+):
+    _room_data = RoomPATCH(hotel_id=hotel_id, **room_data.model_dump(exclude_unset=True))
+    async with async_session_maker() as session:
+        await RoomsRepository(session).edit(_room_data, exclude_unset=True, id=room_id, hotel_id=hotel_id)
+        await session.commit()
+    return {"status": "OK"}
