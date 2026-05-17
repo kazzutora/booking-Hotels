@@ -9,7 +9,7 @@ class RoomAdd(BaseModel):
     price: int
     quantity: int
 
-class Hotel(RoomAdd):
+class Room(RoomAdd):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
