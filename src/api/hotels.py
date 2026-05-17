@@ -6,7 +6,7 @@ from starlette import status
 
 from repositories.hotels import HotelsRepository
 from repositories.rooms import RoomsRepository
-from src.api.dependencies import PaginationDep
+from src.api.dependencies import PaginationDep, DBDep
 from src.database import async_session_maker
 from src.models.hotels import HotelsOrm
 from src.schemas.hotels import Hotel, HotelPATCH, HotelAdd
@@ -21,17 +21,17 @@ router = APIRouter(prefix="/hotels", tags=["Отели"])
 @router.get("")
 async def get_hotels(
         pagination: PaginationDep,
+        db: DBDep,
         location: str | None = Query(None, description="Локацияя1z1"),
         title: str | None = Query(None, description="Название отеля"),
 ):
     per_page = pagination.per_page or 5
-
-    async with async_session_maker() as session:
-        return await HotelsRepository(session).get_all(
+    return await db.hotels.get_all(
             location = location,
             title = title,
             limit=per_page,
-            offset=per_page * (pagination.page - 1))
+            offset=per_page * (pagination.page - 1)
+                               )
 
 @router.get("/{hotel_id}")
 async def get_hotel_by_id(
