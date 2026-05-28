@@ -14,6 +14,7 @@ from src.database import Base
 from src.models.hotels import HotelsOrm
 from src.models.rooms import RoomsOrm
 from src.models.users import UsersOrm# Імпортуємо моделі
+from src.models.bookings import BookingsOrm
 
 # Конфігурація Alembic
 config = context.config
