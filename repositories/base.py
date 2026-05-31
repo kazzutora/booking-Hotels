@@ -37,8 +37,13 @@ class BaseRepository:
             .values(**data.model_dump(exclude_unset=exclude_unset))
         )
         await self.session.execute(update_stmt)
-    async def get_filtered(self, **filter_by):
-        query = select(self.model).filter_by(**filter_by)
+    async def get_filtered(self,*filter, **filter_by):
+        query = (
+            select(self.model)
+            .filter(*filter)
+            .filter_by(**filter_by)
+
+        )
         result = await self.session.execute(query)
         return [self.schema.model_validate(model) for model in result.scalars().all()]
 
