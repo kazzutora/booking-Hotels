@@ -90,8 +90,11 @@ class RoomsRepository(BaseRepository):
 
         print(rooms_ids_to_get.compile(bind=engine, compile_kwargs={"literal_binds": True}))
         return await self.get_filtered(RoomsOrm.id.in_(rooms_ids_to_get))
-
-
+    # Додаткові специфічні методи для кімнат
+    async def get_by_hotel_id(self, hotel_id: int):
+        query = select(self.model).where(self.model.hotel_id == hotel_id)
+        result = await self.session.execute(query)
+        return result.scalars().all()
 
     async def get_all(self,
                       title=None,

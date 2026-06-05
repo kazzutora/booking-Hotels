@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, HTTPException
 
 from src.api.dependencies import DBDep
 from src.schemas.facilities import RoomFacility, RoomFacilityAdd
@@ -35,6 +35,7 @@ async def create_room(hotel_id: int, db: DBDep, room_data: RoomAddRequest = Body
     return {"status": "OK", "data": room}
 
 
+# src/api/rooms.py
 @router.put("/{hotel_id}/rooms/{room_id}")
 async def edit_room(
         hotel_id: int,
@@ -42,10 +43,18 @@ async def edit_room(
         room_data: RoomAddRequest,
         db: DBDep,
 ):
+    # Перевіряємо чи існує кімната
+    existing_room = await db.rooms.get_by_id(room_id)  # ← тепер метод існує
+    if not existing_room:
+        raise HTTPException(status_code=404, detail="Кімнату не знайдено")
+
+    # Оновлюємо дані кімнати
     _room_data = RoomAdd(hotel_id=hotel_id, **room_data.model_dump())
-    room = await db.rooms.edit(_room_data, id=room_id)
-    rooms_facilities_data = [RoomFacilityAdd(room_id=room.id, facility_id=f_id) for f_id in room_data.facilities_ids]
-    await db.rooms_facilities.edit(rooms_facilities_data)
+    await db.rooms.edit(_room_data, id=room_id)
+
+    # Оновлюємо зручності
+    await db.rooms_facilities.update_room_facilities(room_id, room_data.facilities_ids or [])
+
     await db.commit()
     return {"status": "OK"}
 

@@ -1,5 +1,8 @@
 from pydantic import BaseModel
 from sqlalchemy import select, insert, update, delete
+
+from src.models.facilities import RoomsFacilitiesOrm
+from src.schemas.facilities import RoomFacility, RoomFacilityAdd
 from src.schemas.hotels import Hotel
 
 
@@ -34,6 +37,24 @@ class BaseRepository:
        add_data_stmt = insert(self.model).values([item.model_dump() for item in data])
        await self.session.execute(add_data_stmt)
 
+    async def delete_by_room_id(self, room_id: int):
+        """Видаляє всі зручності для кімнати"""
+        query = delete(RoomsFacilitiesOrm).where(RoomsFacilitiesOrm.room_id == room_id)
+        await self.session.execute(query)
+
+    async def update_room_facilities(self, room_id: int, facilities_ids: list[int]):
+        """Оновлює зручності кімнати"""
+        # Видаляємо старі
+        await self.delete_by_room_id(room_id)
+
+        # Додаємо нові
+        if facilities_ids:
+            facilities_data = [
+                RoomFacilityAdd(room_id=room_id, facility_id=f_id)
+                for f_id in facilities_ids
+            ]
+            await self.add_bulk(facilities_data)
+
     async def edit(self, data: BaseModel, exclude_unset: bool = False, **filter_by) -> None:
         update_stmt = (
             update(self.model)
@@ -50,6 +71,12 @@ class BaseRepository:
         )
         result = await self.session.execute(query)
         return [self.schema.model_validate(model) for model in result.scalars().all()]
+
+    async def get_by_id(self, record_id: int):
+        """Базовий метод отримання запису за ID"""
+        query = select(self.model).where(self.model.id == record_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
 
     async def delete(self, **filter_by) -> None:
         delete_stmt = delete(self.model).filter_by(**filter_by)
