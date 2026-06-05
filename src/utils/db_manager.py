@@ -2,6 +2,8 @@ from repositories.bookings import BookingsRepository
 from repositories.hotels import HotelsRepository
 from repositories.rooms import RoomsRepository
 from repositories.users import UserRepository
+from repositories.facilities import FacilitiesRepository, RoomsFacilitiesRepository
+from src.models.facilities import RoomsFacilitiesOrm
 from src.schemas.hotels import HotelPATCH
 
 
@@ -15,6 +17,8 @@ class DBManager:
         self.rooms = RoomsRepository(self.session)
         self.users = UserRepository(self.session)
         self.bookings = BookingsRepository(self.session)
+        self.facilities = FacilitiesRepository(self.session)
+        self.rooms_facilities = RoomsFacilitiesRepository(self.session)
         return self
 
     async def __aexit__(self , *args):
