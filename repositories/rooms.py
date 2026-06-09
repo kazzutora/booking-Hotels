@@ -1,13 +1,14 @@
 from datetime import date
 
 from pydantic import BaseModel
+from sqlalchemy.orm import joinedload
 
 from repositories.base import BaseRepository
 from repositories.hotels import HotelsRepository
 from src.database import engine
 from src.models.bookings import BookingsOrm
 from src.models.rooms import RoomsOrm
-from src.schemas.rooms import Room, RoomAdd
+from src.schemas.rooms import Room, RoomAdd, RoomWithRels
 from sqlalchemy import select, func, insert , delete , update
 
 class RoomsRepository(BaseRepository):
@@ -164,6 +165,45 @@ class RoomsRepository(BaseRepository):
     async def delete(self, **filter_by) -> None:
         query = delete(self.model).filter_by(**filter_by)
         await self.session.execute(query)
+
+    async def get_filtered_by_fac(
+            self,
+            hotel_id,
+            date_from: date,
+            date_to: date,
+    ):
+        rooms_ids_to_get = self.rooms_ids_for_booking(date_from, date_to, hotel_id)
+
+        query = (
+            select(self.model)
+            .options(joinedload(self.model.facilities))
+            .filter(RoomsOrm.id.in_(rooms_ids_to_get))
+        )
+        result = await self.session.execute(query)
+        return [RoomWithRels.model_validate(model) for model in result.unique().scalars().all()]
+
+    async def rooms_ids_for_booking(self, date_from: date, date_to: date, hotel_id: int) -> list[int]:
+        """Get room IDs that are available for booking in the given date range."""
+        # Query rooms that have no overlapping bookings
+        query = (
+            select(RoomsOrm.id)
+            .select_from(RoomsOrm)
+            .join(BookingsOrm, RoomsOrm.id == BookingsOrm.room_id, isouter=True)
+            .where(RoomsOrm.hotel_id == hotel_id)
+            .where(
+                or_(
+                    BookingsOrm.id.is_(None),  # No bookings at all
+                    ~and_(
+                        BookingsOrm.date_from < date_to,
+                        BookingsOrm.date_to > date_from
+                    )  # No overlapping bookings
+                )
+            )
+            .group_by(RoomsOrm.id)
+        )
+
+        result = await self.session.execute(query)
+        return result.scalars().all()
 
 
 

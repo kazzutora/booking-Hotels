@@ -16,3 +16,10 @@ class BookingsRepository(BaseRepository):
     model = BookingsOrm
     schema = Bookings
 
+    async def get_bookings_with_today_checkin(self):
+        query = (
+            select(BookingsOrm)
+            .filter(BookingsOrm.date_from == date.today())
+        )
+        res = self.session.execute(query)
+        return res.scalars().all()
