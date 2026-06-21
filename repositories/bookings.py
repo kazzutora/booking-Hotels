@@ -10,16 +10,14 @@ from src.models.rooms import RoomsOrm
 from src.schemas.bookings import BookingsAdd, Bookings
 from src.schemas.rooms import Room, RoomAdd
 from sqlalchemy import select, func, insert , delete , update
-
+from repositories.mappers.base import DataMapper
 
 class BookingsRepository(BaseRepository):
     model = BookingsOrm
     schema = Bookings
 
     async def get_bookings_with_today_checkin(self):
-        query = (
-            select(BookingsOrm)
-            .filter(BookingsOrm.date_from == date.today())
-        )
-        res = self.session.execute(query)
-        return res.scalars().all()
+        query = select(BookingsOrm).filter(BookingsOrm.date_from == date.today())
+        res = await self.session.execute(query)
+        return [Bookings.model_validate(booking, from_attributes=True)
+                for booking in res.scalars().all()]
